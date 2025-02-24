@@ -1,156 +1,160 @@
-# Import librairies
-import numpy as np;
-import pandas as pd;
-
+import warnings
+warnings.filterwarnings("ignore")
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
+from collections import Counter
 
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.io as pio
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, f1_score
 
-from sklearn import preprocessing
-from sklearn.impute import SimpleImputer
+from imblearn.over_sampling import RandomOverSampler
+
+# Modèles
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+import xgboost as xgb
 
 
-#Loading Data and Data Pre-processing
-class KIDNEY_DISEASE_DATASET():
-    
-    def __init__(self, path_file):
-        self.path_file = path_file
+class KidneyDiseaseModelTrainer():
+    def __init__(self, file_path, target_col='classification'):
+        """
+        Initialisation de la classe avec chargement des données et prétraitement.
+        """
+        self.file_path = file_path
+        self.target_col = target_col
+        self.models = {
+            "Decision Tree": DecisionTreeClassifier(),
+            "Random Forest": RandomForestClassifier(),
+            "SVM": SVC(),
+            "Logistic Regression": LogisticRegression(),
+            "KNN": KNeighborsClassifier(),
+            "XGBoost": xgb.XGBClassifier()
+        }
+        self.results = {}
 
-    # Import Dataset
-    def read_dataset(self):
-        try:
-            self.data = pd.read_csv(self.path_file)
-            print("\nForme initiale du jeu de données:", self.data.shape)
-            print("\nAfficher les premières lignes du dataset:")
-            print(self.data.head())
-            return self.data
-        except FileNotFoundError:
-            print(f"Fichier non trouvé: {self.path_file}")
-            return None
-
-    # Affichage des informations du dataset
-    def data_infos(self, data,):
-
-        # Suppression de la colonne 'id' si elle existe
-        if 'id' in data.columns:
-            data = data.drop('id', axis=1)
-
-        print("\nInformation sur le dataset:")
-        print(data.info())
-
-        print("\nValeurs manquantes par colonne:")
-        print(data.isnull().sum().sort_values(ascending=True))
-
-        print("\nDescription des variables numériques du dataset:")
-        print(data.describe())
+    def load_and_preprocess_data(self):
+        """
+        Charge et prétraite les données (équilibrage, normalisation, réduction de dimension).
+        """
+        # Charger les données
+        data = pd.read_csv(self.file_path)
         
-        return data
-
-    # Identification des colonnes numériques et catégoriques
-    def check_numericals_and_categorials_columns(self, data):
-
-        numerical_cols = data.select_dtypes(include=['number']).columns.tolist()
-        categorical_cols = data.select_dtypes(include=['object']).columns.tolist()
-
-        print("\nColonnes numériques:", numerical_cols)
-        print("\nNombre de colonnes numériques:", len(numerical_cols))
-        print("\nColonnes catégoriques:", categorical_cols)
-        print("\nNombre colonnes catégoriques:", len(categorical_cols))
+        data = data.drop('Unnamed: 0', axis=1)
         
+        print("colonnes:", data.columns)
 
-    # Vérification des valeurs uniques dans les variables catégoriques
-    def check_unique_values_for_categorials(self, data):
-        categorical_cols = data.select_dtypes(include=['object']).columns.tolist()
-        
-        print("\nValeurs uniques dans les variables catégoriques:")
-        for col in categorical_cols:
-            print(f"\nColonne: {col}")
-            print(data[col].unique())
+        # Séparer les features et la cible
+        X = data.drop(columns=[self.target_col])
+        y = data[self.target_col]
 
-    # Prétraitement des données
-    def correct_incorrectly_encoded_columns(self, data):
-        numerical_cols = data.select_dtypes(include=['number']).columns.tolist()
-        categorical_cols = data.select_dtypes(include=['object']).columns.tolist()
+        # Vérifier la répartition des classes avant équilibrage
+        print("Répartition avant équilibrage :", Counter(y))
 
-        # Correction des valeurs mal encodées
-        columns_to_fix = ['pcv', 'wc', 'rc', 'dm', 'cad', 'classification']
-        for col in columns_to_fix:
-            if col in data.columns:
-                data[col] = data[col].astype(str).str.strip().str.replace("\t", "").replace("?", np.nan)
 
-        # Correction spécifique des valeurs dans certaines colonnes
-        print("\nColonnes numériques:", numerical_cols)
-        print("\nNombre de colonnes numériques:", len(numerical_cols))
-        print("\nColonnes catégoriques:", categorical_cols)
-        print("\nNombre de colonnes catégoriques:", len(categorical_cols))
-        
-        # Conversion des colonnes numériques mal encodées
-        cols_to_convert = ['pcv', 'wc', 'rc']
-        for col in cols_to_convert:
-            if col in self.data.columns:
-                data[col] = pd.to_numeric(data[col], errors='coerce')
-        
-        # Convertit toutes les colonnes non catégoriques (object) en float       
-        data.select_dtypes(exclude = ['object']).columns
-        for i in data.select_dtypes(exclude = ['object']).columns:
-            data[i] = data[i].apply(lambda x: float(x))
-        
-        return data
-    
-    # Remplace les valeurs NaN par la valeur la plus fréquente (mode) dans chaque colonne.
-    def Handling_Missing_Values(self, data):
-        data_clean = self.correct_incorrectly_encoded_columns(data)
-        mode = SimpleImputer(missing_values=np.nan, strategy="most_frequent")
-        df_clean = pd.DataFrame(mode.fit_transform(data_clean))
-        df_clean.columns = data.columns
-        
-        return df_clean
-    
-    def encode_data(self, data):
-        data_clean = self.Handling_Missing_Values(data)
-        encode_data = data_clean.apply(preprocessing.LabelEncoder().fit_transform)
-        
-        return encode_data  
-       
-    # Heatmap correlation
-    def correlation_columns(self, data):
-        corr = data.corr()
-        sns.heatmap(corr, annot = True, cmap='YlGnBu')
+        # Appliquer MinMaxScaler après équilibrage
+        scaler = MinMaxScaler(feature_range=(-1, 1))
+        X_scaled = scaler.fit_transform(X)
+
+        # Séparer en ensemble d'entraînement et de test AVANT l'équilibrage
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+
+    def train_and_evaluate(self):
+        """
+        Entraîne plusieurs modèles et évalue leurs performances.
+        """
+        for model_name, model in self.models.items():
+            print(f"\n🔹 Entraînement du modèle : {model_name}")
+
+            # Entraînement du modèle
+            model.fit(self.X_train, self.y_train)
+
+            # Prédictions
+            y_pred = model.predict(self.X_test)
+
+            # Évaluation des performances
+            accuracy = accuracy_score(self.y_test, y_pred)
+            f1 = f1_score(self.y_test, y_pred, average='weighted')  # Calcul du F1-score
+            conf_matrix = confusion_matrix(self.y_test, y_pred)
+            class_report = classification_report(self.y_test, y_pred)
+
+            # Stocker les résultats
+            self.results[model_name] = {
+                "accuracy": accuracy,
+                "f1_score": f1,
+                "confusion_matrix": conf_matrix,
+                "classification_report": class_report
+            }
+
+            # Affichage des résultats
+            print(f"✅ {model_name} - Accuracy: {accuracy:.4f} | F1-score: {f1:.4f}")
+            print("\nMatrice de confusion :\n", conf_matrix)
+            print("\nRapport de classification :\n", class_report)
+
+    def compare_models(self):
+        """
+        Compare les modèles sur la base de l'accuracy et du f1_score.
+        """
+        accuracies = {model: res["accuracy"] for model, res in self.results.items()}
+        f1_scores = {model: res["f1_score"] for model, res in self.results.items()}
+
+        # Affichage des performances sous forme de graphique
+        plt.figure(figsize=(12, 5))
+
+        # Graphique des accuracy
+        plt.subplot(1, 2, 1)
+        sns.barplot(x=list(accuracies.keys()), y=list(accuracies.values()), palette="Blues_r")
+        plt.xlabel("Modèles")
+        plt.ylabel("Accuracy")
+        plt.title("Comparaison des modèles - Accuracy")
+        plt.xticks(rotation=30)
+
+        # Graphique des f1-scores
+        plt.subplot(1, 2, 2)
+        sns.barplot(x=list(f1_scores.keys()), y=list(f1_scores.values()), palette="Greens_r")
+        plt.xlabel("Modèles")
+        plt.ylabel("F1-score")
+        plt.title("Comparaison des modèles - F1 Score")
+        plt.xticks(rotation=30)
+
+        plt.tight_layout()
         plt.show()
 
+    def get_best_model(self):
+        """
+        Retourne et sauvegarde le meilleur modèle en fonction de l'accuracy et du f1_score.
+        """
+        best_model = max(self.results, key=lambda k: self.results[k]["f1_score"])
+        best_model_instance = self.models[best_model]
 
+        print(f"\n🏆 Le meilleur modèle est : {best_model} avec une Accuracy de {self.results[best_model]['accuracy']:.4f} et un F1-score de {self.results[best_model]['f1_score']:.4f}")
 
-        
-path_file = 'kidney_disease.csv'        
-dataset = KIDNEY_DISEASE_DATASET(path_file)
+        # Sauvegarde du meilleur modèle en .pkl
+        model_filename = f"best_model_{best_model}.pkl"
+        joblib.dump(best_model_instance, model_filename)
+        print(f"📁 Modèle sauvegardé sous : {model_filename}")
 
-data = dataset.read_dataset()
-
-# Afficher les informations du dataset
-data = dataset.data_infos(data)
-
-# Identifier les variables numériques et catégoriques
-dataset.check_numericals_and_categorials_columns(data)
-
-
-# cleanning missing values
-data_clean = dataset.Handling_Missing_Values(data)
-
-
-encode_data = dataset.encode_data(data)
-
-# Delete columns
-encode_data.drop('pcv', axis=1, inplace=True)
-encode_data.drop('bu', axis=1, inplace=True)
-
-def drop_columns(data):
+        return best_model, best_model_instance
     
-    data.drop('pcv', axis=1, inplace=True)
-    data.drop('bu', axis=1, inplace=True)
-    
-    return data
 
-# encode_data.to_csv("Final_pre_processing_data.csv")
+model = KidneyDiseaseModelTrainer('Final_pre_processing_data.csv')
+
+# Charger et prétraiter les données
+model.load_and_preprocess_data()
+
+# Entraîner et évaluer les modèles
+model.train_and_evaluate()
+
+# Comparer les modèles
+model.compare_models()
+
+# Sélectionner le meilleur modèle
+print("🏆 Meilleur modèle :")
+best_model, best_model_instance = model.get_best_model()
