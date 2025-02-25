@@ -12,7 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, f1_score
 
-from imblearn.over_sampling import RandomOverSampler
+# from imblearn.over_sampling import RandomOverSampler
 
 # Modèles
 from sklearn.tree import DecisionTreeClassifier

@@ -72,20 +72,12 @@ class KIDNEY_DISEASE_DATASET():
 
     # Prétraitement des données
     def correct_incorrectly_encoded_columns(self, data):
-        numerical_cols = data.select_dtypes(include=['number']).columns.tolist()
-        categorical_cols = data.select_dtypes(include=['object']).columns.tolist()
 
         # Correction des valeurs mal encodées
         columns_to_fix = ['pcv', 'wc', 'rc', 'dm', 'cad', 'classification']
         for col in columns_to_fix:
             if col in data.columns:
                 data[col] = data[col].astype(str).str.strip().str.replace("\t", "").replace("?", np.nan)
-
-        # Correction spécifique des valeurs dans certaines colonnes
-        print("\nColonnes numériques:", numerical_cols)
-        print("\nNombre de colonnes numériques:", len(numerical_cols))
-        print("\nColonnes catégoriques:", categorical_cols)
-        print("\nNombre de colonnes catégoriques:", len(categorical_cols))
         
         # Conversion des colonnes numériques mal encodées
         cols_to_convert = ['pcv', 'wc', 'rc']
@@ -142,9 +134,19 @@ data_clean = dataset.Handling_Missing_Values(data)
 
 encode_data = dataset.encode_data(data)
 
+# D’après la `matrice de corrélation`, nous observons que certaines caractéristiques présentent une `forte multicolinéarité` :
+# - `pcv` et `hemo` ont une corrélation de `82 %`, indiquant une redondance d’information.
+# - `sc` et `bu` ont une corrélation de `81 %` suggérant une forte interdépendance.
+# - 
+# Dans un modèle de Machine Learning, la présence de variables fortement corrélées peut entraîner des problèmes de multicolinéarité, ce qui peut affecter l’interprétation des coefficients et introduire du bruit dans les prédictions.
+
+# Pour réduire la multicolinéarité, nous supprimons une caractéristique dans chaque paire fortement corrélée :
+# - Suppression de `pcv`, car hemo semble mieux corrélé avec la variable cible classification (0.66).
+# - Suppression de `bu`, car sc a une corrélation plus forte avec classification (0.54 contre -0.43 pour bu).
+
 # Delete columns
-encode_data.drop('pcv', axis=1, inplace=True)
-encode_data.drop('bu', axis=1, inplace=True)
+# encode_data.drop('pcv', axis=1, inplace=True)
+# encode_data.drop('bu', axis=1, inplace=True)
 
 def drop_columns(data):
     
@@ -153,4 +155,6 @@ def drop_columns(data):
     
     return data
 
+
+data_final = drop_columns(encode_data)
 # encode_data.to_csv("Final_pre_processing_data.csv")
