@@ -34,30 +34,31 @@ cd kidney-disease-prediction
 
 2️⃣ Installer les dépendances
 
-pip install -r requirements.txt
-
 📦 Librairies utilisées
 
-numpy, pandas, seaborn, matplotlib → Analyse des données
-
-scikit-learn, xgboost → Machine Learning
-
-imblearn → Gestion du déséquilibre des classes
-
-fastapi, uvicorn → API
-
-joblib → Sauvegarde du modèle
+  - numpy,
+  - pandas,
+  - seaborn,
+  - matplotlib
+  - scikit-learn
+  - xgboost
+  - imblearn
+  - fastapi,
+  - uvicorn
+  - joblib 
 
 3️⃣ Prétraiter les données
-
-python Kidney_Disease_Dataset.py
+`
+python Kidney_Disease_Dataset.py`
+`
 
 4️⃣ Entraîner les modèles
-
+`
 python Kidney_Disease_Train.py
-
+`
 📌 Modèles entraînés
 
+`
 🌲 Decision Tree
 
 🌳 Random Forest
@@ -69,14 +70,17 @@ python Kidney_Disease_Train.py
 🔢 KNN
 
 ⚡ XGBoost
+`
 
 Le meilleur modèle est sauvegardé sous best_model.pkl.
 
 🌍 Lancer l'API FastAPI
 
+`
 uvicorn api_kidney_disease:app --host 0.0.0.0 --port 8000 --reload
+`
 
-📌 Accès API : http://127.0.0.1:8000
+📌 Accès API : `http://127.0.0.1:8000`
 
 🔥 Tester l'API avec POSTMAN ou cURL
 
@@ -84,6 +88,7 @@ uvicorn api_kidney_disease:app --host 0.0.0.0 --port 8000 --reload
 
 📌 Endpoint : POST /predict🔹 Exemple de requête JSON :
 
+`
 {
     "age": 45, "bp": 80, "sg": 1.02, "al": 1, "su": 0,
     "rbc": "normal", "pc": "abnormal", "pcc": "notpresent",
@@ -92,8 +97,9 @@ uvicorn api_kidney_disease:app --host 0.0.0.0 --port 8000 --reload
     "rc": 4.5, "htn": "yes", "dm": "no", "cad": "no",
     "appet": "good", "pe": "no", "ane": "no"
 }
+`
 
-✅ Réponse :
+✅ Réponse Attendue :
 
 {
     "prediction": "ckd"
@@ -102,11 +108,12 @@ uvicorn api_kidney_disease:app --host 0.0.0.0 --port 8000 --reload
 🔹 2. Prédictions multiples (CSV)
 
 📌 Endpoint : POST /upload-csv
-
+`
 curl -X 'POST' 'http://127.0.0.1:8000/upload-csv' \
   -H 'accept: application/json' \
   -H 'Content-Type: multipart/form-data' \
   -F 'file=@patients.csv'
+`
 
 🎯 Objectif
 
